@@ -1,0 +1,35 @@
+.container {
+    width: 80%;
+    margin: auto;
+}
+
+.container img {
+    width: 80%;
+    opacity: 0.9;
+}
+
+.text-center {
+    text-align: center;
+    position: relative;
+}
+
+.btn {
+    position: absolute;
+    top: 43%;
+    left: 43%;
+    padding: 15px 32px;
+    background-color: blueviolet;
+    color: beige;
+    font-size: 1.5rem;
+    border-radius: 10px;
+    text-decoration: none;
+    transition-duration: 300ms;
+}
+
+.btn:hover {
+    padding: 15px 32px;
+    background-color: rgb(210, 182, 236);
+    color: beige;
+    border-radius: 10px;
+    text-decoration: none;
+}
