@@ -17,7 +17,7 @@ body {
     position: relative;
 }
 
-.btn {
+.myErrorBtn {
     position: absolute;
     top: 43%;
     left: 43%;
@@ -30,7 +30,7 @@ body {
     transition-duration: 300ms;
 }
 
-.btn:hover {
+.myErrorBtn:hover {
     padding: 15px 32px;
     background-color: rgb(210, 182, 236);
     color: beige;
