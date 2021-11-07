@@ -3,9 +3,9 @@
  * 
  *  of this assignment has been copied manually or electronically from any other source * (including 3rd party web sites) or distributed to other students.  
  * 
- *  Name: SHoleh CHeraghpourahmadmahmoudi Student ID: 122119209 Date: OCT/24/2021  
+ *  Name: Sholeh Cheraghpourahmadmahmoudi Student ID: 122119209 Date: NOV/07/2021  
  * 
- *  Online (Heroku) Link:  https://thawing-bayou-79692.herokuapp.com/
+ *  Online (Heroku) Link:  
  * 
  *  ********************************************************************************/
 
@@ -23,6 +23,8 @@ const bodyParser = require("body-parser");
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
+const exphbs = require("express-handlebars");
+
 app.use(express.static('./public/'));
 
 const HTTP_PORT = process.env.PORT || 8080;
@@ -30,6 +32,35 @@ const HTTP_PORT = process.env.PORT || 8080;
 function onHttpStart() {
   console.log("Express http server listening on: " + HTTP_PORT);
 }
+
+app.engine('.hbs', exphbs({
+  extname: '.hbs',
+  defaultLayout: "main",
+  helpers: {
+    navLink: function (url, options) {
+      return '<li' +
+        ((url == app.locals.activeRoute) ? ' class="active" ' : '') +
+        '><a href="' + url + '">' + options.fn(this) + '</a></li>';
+    },
+
+    equal: function (lvalue, rvalue, options) {
+      if (arguments.length < 3)
+        throw new Error("Handlebars Helper equal needs 2 parameters");
+      if (lvalue != rvalue) {
+        return options.inverse(this);
+      } else {
+        return options.fn(this);
+      }
+    }
+  }
+}));
+app.set('view engine', '.hbs');
+
+app.use(function (req, res, next) {
+  let route = req.baseUrl + req.path;
+  app.locals.activeRoute = (route == "/") ? "/" : route.replace(/\/$/, "");
+  next();
+});
 
 const storage = multer.diskStorage({
   destination: "./public/images/uploaded/",
@@ -42,15 +73,18 @@ const upload = multer({ storage: storage });
 
 
 app.get('/', function (req, res) {
-  res.sendFile(path.join(__dirname + '/views/home.html'));
+  //res.sendFile(path.join(__dirname + '/views/home.html'));
+  res.render("home");
 });
 
 app.get("/about", function (req, res) {
-  res.sendFile(path.join(__dirname, "/views/about.html"));
+  //res.sendFile(path.join(__dirname, "/views/about.html"));
+  res.render("about");
 });
 
 app.get("/employees/add", function (req, res) {
-  res.sendFile(path.join(__dirname, '/views/addEmployee.html'));
+  //res.sendFile(path.join(__dirname, '/views/addEmployee.html'));
+  res.render("addEmployee");
 });
 
 app.post("/employees/add", function (req, res) {
@@ -74,7 +108,8 @@ app.get("/images", function (req, res) {
 });
 
 app.get("/images/add", function (req, res) {
-  res.sendFile(path.join(__dirname, '/views/addImage.html'));
+  //res.sendFile(path.join(__dirname, '/views/addImage.html'));
+  res.render("addImage");
 });
 
 app.post("/images/add", upload.single("imageFile"), function (req, res) {
@@ -97,12 +132,12 @@ app.get("/departments", function (req, res) {
   dataserver.getDepartments()
     .then((data) => {
       console.log("getDepartments JSON.");
-      res.json(data);
+      res.render("departments", { departments: data });
 
     })
     .catch((err) => {
       console.log(err);
-      res.json(err);
+      res.render({ message: "no results" });
     })
 });
 
@@ -121,59 +156,69 @@ app.get("/managers", function (req, res) {
 app.post("/images/add", upload.single("imageFile"), function (req, res) {
   res.redirect("/images");
 });
+app.post("/employee/update", (req, res) => {
+  //console.log(req.body);
+  dataserver.updateEmployee(req.body)
+    .then(() => {
+      res.redirect("/employees");
+    })
+    .catch((err) => {
+      console.log(err);
+    })
+});
 
 app.get("/employees", function (req, res) {
   if (req.query.status) {
     dataserver.getEmployeesByStatus(req.query.status)
       .then((data) => {
-        res.json(data);
+        res.render("employees", { employees: data });
       })
       .catch((err) => {
-        res.json(err);
+        res.render({ message: "no results" });
       })
   }
   else
     if (req.query.department) {
       dataserver.getEmployeesByDepartment(req.query.department)
         .then((data) => {
-          res.json(data);
+          res.render("employees", { employees: data });
         })
         .catch((err) => {
-          res.json(err);
+          res.render({ message: "no results" });
         })
     }
     else
       if (req.query.isManager) {
         dataserver.getEmployeesByManager(req.query.isManager)
           .then((data) => {
-            res.json(data);
+            res.render("employees", { employees: data });
           })
           .catch((err) => {
-            res.json(err);
+            res.render({ message: "no results" });
           })
       }
       else {
         dataserver.getAllEmployees()
           .then((data) => {
             //console.log("getAllEmployees JSON.");
-            res.json(data);
+            res.render("employees", { employees: data });
           })
           .catch((err) => {
             console.log(err);
-            res.json(err);
+            res.render({ message: "no results" });
           })
       }
 });
 
-app.get("/employees/:num", function (req, res) {
+app.get("/employee/:num", function (req, res) {
   dataserver.getEmployeeByNum(req.params.num)
     .then((data) => {
       // console.log("getEmployeeByNum JSON.");
-      res.json(data);
+      res.render("employee", { employee: data });
     })
     .catch((err) => {
       console.log(err);
-      res.json(err);
+      res.render("employee", { message: "no results" });
     })
 });
 
