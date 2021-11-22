@@ -83,23 +83,25 @@ app.get("/about", function (req, res) {
 });
 
 app.get("/employees/add", function (req, res) {
-  //res.sendFile(path.join(__dirname, '/views/addEmployee.html'));
-  res.render("addEmployee");
+  dataserver.getDepartments().then((data) => {
+    res.render("addEmployee", { departments: data });
+  }).catch((err) => {
+    res.render("addEmployee", { departments: [] });
+  });
 });
 
 app.post("/employees/add", function (req, res) {
   dataserver.addEmployee(req.body)
     .then((dataserver) => {
-      res.render("addEmployee",{departments: dataserver});
+      res.redirect("/employees");
     }).catch((err) => {
-      res.render("addEmployee", {departments:[]});
     });
 });
 
 app.get("/images", function (req, res) {
   const imgPath = "/public/images/uploaded/";
   fs.readdir(path.join(__dirname, imgPath), function (err, items) {
-        res.render("images", {images:items});
+    res.render("images", { images: items });
   });
 
 });
@@ -129,7 +131,7 @@ app.get("/departments", function (req, res) {
   dataserver.getDepartments()
     .then((data) => {
       console.log("getDepartments JSON.");
-      res.render("departments", { data: data ,  title: "Departments" });
+      res.render("departments", { data: data, title: "Departments" });
 
     })
     .catch((err) => {
@@ -138,40 +140,42 @@ app.get("/departments", function (req, res) {
     })
 });
 
-app.get("/departments/add", (req,res) => {
+app.get("/department/:departmentId", (req, res) => {
+  dataserver.getDepartmentById(req.params.departmentId).then((data) => {
+    res.render("department", { data: data });
+  }).catch((err) => {
+    res.status(404).send("Department Not Found");
+  });
+});
+
+app.get("/departments/add", (req, res) => {
   //res.sendFile(path.join(__dirname, "/views/addEmployee.html"));
   res.render("addDepartment");
 });
 
 app.post("/departments/add", (req, res) => {
-  dataserver.addDepartment(req.body).then(()=>{
+  dataserver.addDepartment(req.body).then(() => {
     res.redirect("/departments");
-  }).catch((err)=>{
-      res.status(500).send("Unable to Update Employee");   
+  }).catch((err) => {
+    res.status(500).send("Unable to Update Employee");
   });
 });
 
 app.post("/department/update", (req, res) => {
-	dataserver.updateDepartment(req.body).then(()=>{
-	res.redirect("/departments");
-	}).catch((err)=>{
-        res.status(500).send("Unable to Update Employee");
-    });
-});
-
-app.get("/department/:departmentId", (req, res) => {
-  dataserver.getDepartmentByNum(req.params.departmentId).then((dataserver) => {
-  res.render("department", { department: dataserver });
+  dataserver.updateDepartment(req.body).then(() => {
+    res.redirect("/departments");
   }).catch((err) => {
-      res.status(404).send("Department Not Found");
+    res.status(500).send("Unable to Update Employee");
   });
 });
 
+
+
 app.get("/departments/delete/:departmentId", (req, res) => {
   dataserver.deleteDepartmentById(req.params.departmentId).then((data) => {
-  res.redirect("/departments");
+    res.redirect("/departments");
   }).catch((err) => {
-      res.status(500).send("Unable to Remove Department / Department not found)");
+    res.status(500).send("Unable to Remove Department / Department not found)");
   });
 });
 app.get("/managers", function (req, res) {
@@ -189,6 +193,7 @@ app.get("/managers", function (req, res) {
 app.post("/images/add", upload.single("imageFile"), function (req, res) {
   res.redirect("/images");
 });
+
 app.post("/employee/update", (req, res) => {
   //console.log(req.body);
   dataserver.updateEmployee(req.body)
@@ -197,63 +202,66 @@ app.post("/employee/update", (req, res) => {
     })
     .catch((err) => {
       //console.log(err);
-      res.status(500).send("Unable to Update Employee"); 
+      res.status(500).send("Unable to Update Employee");
     })
 });
 
 app.get("/employees", function (req, res) {
+  console.log(req.query.department);
   if (req.query.status) {
-    dataserver.getEmployeesByStatus(req.query.status)
-      .then((dataserver) => {
-        res.render("employees", { employees: dataserver });
-      })
-      .catch((err) => {
-        res.render({ message: "no results" });
-      })
+    dataserver.getEmployeesByStatus(req.query.status).then((data) => {
+      res.render("employees", { data: data, title: "Employees" });
+    }).catch((err) => {
+      res.render({ message: "no results" });
+    });
+  } else if (req.query.department) {
+    dataserver.getEmployeesByDepartment(req.query.department).then((data) => {
+      res.render("employees", { data: data, title: "Employees" });
+    }).catch((err) => {
+      res.render({ message: "no results" });
+    });
+  } else if (req.query.manager) {
+    dataserver.getEmployeesByManager(req.query.manager).then((data) => {
+      res.render("employees", { data: data, title: "Employees" });
+    }).catch((err) => {
+      res.render({ message: "no results" });
+    });
+  } else {
+    dataserver.getAllEmployees().then((data) => {
+      res.render("employees", { data: data, title: "Employees" });
+    }).catch((err) => {
+      res.render({ message: "no results" });
+    });
   }
-  else
-    if (req.query.department) {
-      dataserver.getEmployeesByDepartment(req.query.department)
-        .then((dataserver) => {
-          res.render("employees", { employees: dataserver});
-        })
-        .catch((err) => {
-          res.render({ message: "no results" });
-        })
-    }
-    else
-      if (req.query.isManager) {
-        dataserver.getEmployeesByManager(req.query.isManager)
-          .then((dataserver) => {
-            res.render("employees", { employees: dataserver });
-          })
-          .catch((err) => {
-            res.render({ message: "no results" });
-          })
-      }
-      else {
-        dataserver.getAllEmployees()
-          .then((dataserver) => {
-            //console.log("getAllEmployees JSON.");
-            res.render("employees", { employees: dataserver});
-          })
-          .catch((err) => {
-            console.log(err);
-            res.render({ message: "no results" });
-          })
-      }
 });
 
 app.get("/employee/:num", function (req, res) {
-  dataserver.getEmployeeByNum(req.params.num)
-    .then((dataserver) => {
-      // console.log("getEmployeeByNum JSON.");
-      res.render("employee", { employee: dataserver });
-    })
-    .catch((err) => {
+  let viewData = {};
+  dataserver.getEmployeeByNum(req.params.num).then((data) => {
+    if (data) {
+      viewData.employee = data;
+    } else {
+      viewData.employee = null;
+    }
+  }).catch((err) => {
       console.log(err);
       res.render("employee", { message: "no results" });
-    })
+    }).then(dataserver.getDepartments).then((data) => {
+      viewData.departments = data;
+      for (let i = 0; i < viewData.departments.length; i++) {
+        if (viewData.departments[i].departmentId == viewData.employee[0].department) {
+          viewData.departments[i].selected = true;
+        }
+      }
+    }).catch(() => {
+      viewData.departments = []; // set departments to empty if there was an error
+    }).then(() => {
+      if (viewData.employee == null) {
+        res.status(404).send("Employee not found");
+      } else {
+        res.render("employee", { viewData: viewData })
+      }
+    });
 });
 
 

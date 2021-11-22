@@ -35,8 +35,8 @@ var Employee = sequelize.define('Employee', {
     isManager: Sequelize.BOOLEAN,
     employeeManagerNum: Sequelize.INTEGER,
     status: Sequelize.STRING,
+    department: Sequelize.INTEGER,
     hireDate: Sequelize.STRING,
-
 });
 
 var Department = sequelize.define('Department', {
@@ -141,7 +141,6 @@ module.exports.getEmployeeByNum = function (num) {
             reject("no results returned.");
         });
     });
-
 };
 
 
@@ -158,7 +157,6 @@ module.exports.getEmployeesByStatus = function (statusId) {
             reject("no results returned.");
         });
     });
-
 };
 
 module.exports.getEmployeesByDepartment = function (departmentId) {
@@ -174,7 +172,6 @@ module.exports.getEmployeesByDepartment = function (departmentId) {
             reject("no results returned.");
         });
     });
-
 };
 
 
