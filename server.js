@@ -89,20 +89,17 @@ app.get("/employees/add", function (req, res) {
 
 app.post("/employees/add", function (req, res) {
   dataserver.addEmployee(req.body)
-    .then(() => {
-      res.redirect("/employees");
+    .then((dataserver) => {
+      res.render("addEmployee",{departments: dataserver});
+    }).catch((err) => {
+      res.render("addEmployee", {departments:[]});
     });
 });
 
 app.get("/images", function (req, res) {
   const imgPath = "/public/images/uploaded/";
   fs.readdir(path.join(__dirname, imgPath), function (err, items) {
-    var obj = { images: [] };
-    var size = items.length;
-    for (var i = 0; i < items.length; i++) {
-      obj.images.push(items[i]);
-    }
-    res.json(obj);
+        res.render("images", {images:items});
   });
 
 });
@@ -132,20 +129,56 @@ app.get("/departments", function (req, res) {
   dataserver.getDepartments()
     .then((data) => {
       console.log("getDepartments JSON.");
-      res.render("departments", { departments: data });
+      res.render("departments", { data: data ,  title: "Departments" });
 
     })
     .catch((err) => {
-      console.log(err);
+      //console.log(err);
       res.render({ message: "no results" });
     })
 });
 
+app.get("/departments/add", (req,res) => {
+  //res.sendFile(path.join(__dirname, "/views/addEmployee.html"));
+  res.render("addDepartment");
+});
+
+app.post("/departments/add", (req, res) => {
+  dataserver.addDepartment(req.body).then(()=>{
+    res.redirect("/departments");
+  }).catch((err)=>{
+      res.status(500).send("Unable to Update Employee");   
+  });
+});
+
+app.post("/department/update", (req, res) => {
+	dataserver.updateDepartment(req.body).then(()=>{
+	res.redirect("/departments");
+	}).catch((err)=>{
+        res.status(500).send("Unable to Update Employee");
+    });
+});
+
+app.get("/department/:departmentId", (req, res) => {
+  dataserver.getDepartmentByNum(req.params.departmentId).then((dataserver) => {
+  res.render("department", { department: dataserver });
+  }).catch((err) => {
+      res.status(404).send("Department Not Found");
+  });
+});
+
+app.get("/departments/delete/:departmentId", (req, res) => {
+  dataserver.deleteDepartmentById(req.params.departmentId).then((data) => {
+  res.redirect("/departments");
+  }).catch((err) => {
+      res.status(500).send("Unable to Remove Department / Department not found)");
+  });
+});
 app.get("/managers", function (req, res) {
   dataserver.getManagers()
-    .then((data) => {
+    .then((dataserver) => {
       console.log("getManagers JSON.");
-      res.json(data);
+      res.json(dataserver);
     })
     .catch((err) => {
       console.log(err);
@@ -163,15 +196,16 @@ app.post("/employee/update", (req, res) => {
       res.redirect("/employees");
     })
     .catch((err) => {
-      console.log(err);
+      //console.log(err);
+      res.status(500).send("Unable to Update Employee"); 
     })
 });
 
 app.get("/employees", function (req, res) {
   if (req.query.status) {
     dataserver.getEmployeesByStatus(req.query.status)
-      .then((data) => {
-        res.render("employees", { employees: data });
+      .then((dataserver) => {
+        res.render("employees", { employees: dataserver });
       })
       .catch((err) => {
         res.render({ message: "no results" });
@@ -180,8 +214,8 @@ app.get("/employees", function (req, res) {
   else
     if (req.query.department) {
       dataserver.getEmployeesByDepartment(req.query.department)
-        .then((data) => {
-          res.render("employees", { employees: data });
+        .then((dataserver) => {
+          res.render("employees", { employees: dataserver});
         })
         .catch((err) => {
           res.render({ message: "no results" });
@@ -190,8 +224,8 @@ app.get("/employees", function (req, res) {
     else
       if (req.query.isManager) {
         dataserver.getEmployeesByManager(req.query.isManager)
-          .then((data) => {
-            res.render("employees", { employees: data });
+          .then((dataserver) => {
+            res.render("employees", { employees: dataserver });
           })
           .catch((err) => {
             res.render({ message: "no results" });
@@ -199,9 +233,9 @@ app.get("/employees", function (req, res) {
       }
       else {
         dataserver.getAllEmployees()
-          .then((data) => {
+          .then((dataserver) => {
             //console.log("getAllEmployees JSON.");
-            res.render("employees", { employees: data });
+            res.render("employees", { employees: dataserver});
           })
           .catch((err) => {
             console.log(err);
@@ -212,9 +246,9 @@ app.get("/employees", function (req, res) {
 
 app.get("/employee/:num", function (req, res) {
   dataserver.getEmployeeByNum(req.params.num)
-    .then((data) => {
+    .then((dataserver) => {
       // console.log("getEmployeeByNum JSON.");
-      res.render("employee", { employee: data });
+      res.render("employee", { employee: dataserver });
     })
     .catch((err) => {
       console.log(err);
