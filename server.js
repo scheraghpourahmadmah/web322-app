@@ -1,33 +1,33 @@
 /********************************************************************************* *
- *  WEB322 – Assignment 05 * I declare that this assignment is my own work in accordance with Seneca Academic Policy. No part 
+ *  WEB322 – Assignment 06 * I declare that this assignment is my own work in accordance with Seneca Academic Policy. No part 
  * 
  *  of this assignment has been copied manually or electronically from any other source * (including 3rd party web sites) or distributed to other students.  
  * 
- *  Name: Sholeh Cheraghpourahmadmahmoudi Student ID: 122119209 Date: NOV/21/2021  
+ *  Name: Sholeh Cheraghpourahmadmahmoudi Student ID: 122119209 Date: DEC/08/2021  
  * 
- *  Online (Heroku) Link: https://afternoon-lake-19560.herokuapp.com/
+ *  Online (Heroku) Link: 
  * 
  *  ********************************************************************************/
 
+const HTTP_PORT = process.env.PORT || 8080;
 const express = require("express");
+const path = require("path");
+const multer = require("multer");
+const fs = require("fs");
+const bodyParser = require("body-parser");
 const app = express();
+var dataserver = require("./data-service.js");
+const exphbs = require("express-handlebars");
+var dataServiceAuth = require("./data-service-auth");
+const clientSessions = require("client-sessions");
 
 app.use(express.urlencoded({ extended: true }));
 
-var dataserver = require("./data-service.js");
-const multer = require("multer");
-const path = require("path");
-
-const fs = require("fs");
-const bodyParser = require("body-parser");
-
 app.use(bodyParser.urlencoded({ extended: true }));
-
-const exphbs = require("express-handlebars");
 
 app.use(express.static('./public/'));
 
-const HTTP_PORT = process.env.PORT || 8080;
+
 
 function onHttpStart() {
   console.log("Express http server listening on: " + HTTP_PORT);
@@ -56,6 +56,18 @@ app.engine('.hbs', exphbs({
 }));
 app.set('view engine', '.hbs');
 
+app.use(clientSessions({
+  cookieName: "session",
+  secret: "web_a6_secret",
+  duration: 2 * 60 * 1000, // 2 minutes
+  activeDuration: 1000 * 60 // 1 minute
+}));
+
+app.use((req,res,next) => {
+  res.locals.session = req.session;
+  next();
+});
+
 app.use(function (req, res, next) {
   let route = req.baseUrl + req.path;
   app.locals.activeRoute = (route == "/") ? "/" : route.replace(/\/$/, "");
@@ -71,18 +83,64 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-
+function ensureLogin(req, res, next) {
+  if (!req.session.user) {
+    res.redirect("/login");
+  } else {
+    next();
+  }
+};
 app.get('/', function (req, res) {
-  //res.sendFile(path.join(__dirname + '/views/home.html'));
   res.render("home");
 });
 
 app.get("/about", function (req, res) {
-  //res.sendFile(path.join(__dirname, "/views/about.html"));
   res.render("about");
 });
 
-app.get("/employees/add", function (req, res) {
+app.get("/login", function (req, res) {
+  res.render("login");
+});
+
+app.get("/register", function (req, res) {
+  res.render("register");
+});
+
+app.post("/register", function (req, res) {
+  dataServiceAuth.registerUser(req.body)
+  .then(() => res.render('register', { successMsg: "User created!"}))
+  .catch((err) => res.render('register', { errorMsg: err, userName: req.body.userName }));
+});
+
+// post for /login
+app.post("/login", function (req, res) {
+  req.body.userAgent = req.get('User-Agent');
+
+  dataServiceAuth.checkUser(req.body)
+    .then(function (user) {
+      req.session.user = {
+        userName: user.userName,
+        email: user.email,
+        loginHistory: user.loginHistory
+      }
+      res.redirect('/employees');
+    })
+    .catch(function (err) {
+      console.log(err);
+      res.render('login', { errorMsg: err, userName: req.body.userName });
+    });
+});
+
+app.get("/logout", function (req, res) {
+  req.session.reset();
+  res.redirect('/');
+});
+
+app.get("/userHistory", ensureLogin, function (req, res) {
+  res.render('userHistory');
+});
+
+app.get("/employees/add", ensureLogin, function (req, res) {
   dataserver.getDepartments().then((data) => {
     res.render("addEmployee", { departments: data });
   }).catch((err) => {
@@ -90,7 +148,7 @@ app.get("/employees/add", function (req, res) {
   });
 });
 
-app.post("/employees/add", function (req, res) {
+app.post("/employees/add", ensureLogin, function (req, res) {
   dataserver.addEmployee(req.body)
     .then((dataserver) => {
       res.redirect("/employees");
@@ -98,7 +156,7 @@ app.post("/employees/add", function (req, res) {
     });
 });
 
-app.get("/images", function (req, res) {
+app.get("/images", ensureLogin, function (req, res) {
   const imgPath = "/public/images/uploaded/";
   fs.readdir(path.join(__dirname, imgPath), function (err, items) {
     res.render("images", { images: items });
@@ -106,12 +164,12 @@ app.get("/images", function (req, res) {
 
 });
 
-app.get("/images/add", function (req, res) {
+app.get("/images/add", ensureLogin, function (req, res) {
   //res.sendFile(path.join(__dirname, '/views/addImage.html'));
   res.render("addImage");
 });
 
-app.post("/images/add", upload.single("imageFile"), function (req, res) {
+app.post("/images/add", ensureLogin, upload.single("imageFile"), function (req, res) {
   res.redirect("/images");
 });
 
@@ -127,7 +185,7 @@ app.post("/images/add", upload.single("imageFile"), function (req, res) {
 //     })
 // });
 
-app.get("/departments", function (req, res) {
+app.get("/departments", ensureLogin, function (req, res) {
   dataserver.getDepartments()
     .then((data) => {
       console.log("getDepartments JSON.");
@@ -140,7 +198,7 @@ app.get("/departments", function (req, res) {
     })
 });
 
-app.get("/department/:departmentId", (req, res) => {
+app.get("/department/:departmentId", ensureLogin, (req, res) => {
   dataserver.getDepartmentById(req.params.departmentId).then((data) => {
     res.render("department", { data: data });
   }).catch((err) => {
@@ -148,12 +206,12 @@ app.get("/department/:departmentId", (req, res) => {
   });
 });
 
-app.get("/departments/add", (req, res) => {
+app.get("/departments/add", ensureLogin, (req, res) => {
   //res.sendFile(path.join(__dirname, "/views/addEmployee.html"));
   res.render("addDepartment");
 });
 
-app.post("/departments/add", (req, res) => {
+app.post("/departments/add", ensureLogin, (req, res) => {
   dataserver.addDepartment(req.body).then(() => {
     res.redirect("/departments");
   }).catch((err) => {
@@ -161,7 +219,7 @@ app.post("/departments/add", (req, res) => {
   });
 });
 
-app.post("/department/update", (req, res) => {
+app.post("/department/update", ensureLogin, (req, res) => {
   dataserver.updateDepartment(req.body).then(() => {
     res.redirect("/departments");
   }).catch((err) => {
@@ -171,14 +229,14 @@ app.post("/department/update", (req, res) => {
 
 
 
-app.get("/departments/delete/:departmentId", (req, res) => {
+app.get("/departments/delete/:departmentId", ensureLogin, (req, res) => {
   dataserver.deleteDepartmentById(req.params.departmentId).then((data) => {
     res.redirect("/departments");
   }).catch((err) => {
     res.status(500).send("Unable to Remove Department / Department not found)");
   });
 });
-app.get("/managers", function (req, res) {
+app.get("/managers", ensureLogin, function (req, res) {
   dataserver.getManagers()
     .then((dataserver) => {
       console.log("getManagers JSON.");
@@ -190,11 +248,11 @@ app.get("/managers", function (req, res) {
     })
 });
 
-app.post("/images/add", upload.single("imageFile"), function (req, res) {
+app.post("/images/add", ensureLogin, upload.single("imageFile"), function (req, res) {
   res.redirect("/images");
 });
 
-app.post("/employee/update", (req, res) => {
+app.post("/employee/update", ensureLogin, (req, res) => {
   //console.log(req.body);
   dataserver.updateEmployee(req.body)
     .then(() => {
@@ -206,7 +264,7 @@ app.post("/employee/update", (req, res) => {
     })
 });
 
-app.get("/employees", function (req, res) {
+app.get("/employees", ensureLogin, function (req, res) {
   console.log(req.query.department);
   if (req.query.status) {
     dataserver.getEmployeesByStatus(req.query.status).then((data) => {
@@ -235,7 +293,7 @@ app.get("/employees", function (req, res) {
   }
 });
 
-app.get("/employee/:num", function (req, res) {
+app.get("/employee/:num", ensureLogin, function (req, res) {
   let viewData = {};
   dataserver.getEmployeeByNum(req.params.num).then((data) => {
     if (data) {
@@ -244,24 +302,24 @@ app.get("/employee/:num", function (req, res) {
       viewData.employee = null;
     }
   }).catch((err) => {
-      console.log(err);
-      res.render("employee", { message: "no results" });
-    }).then(dataserver.getDepartments).then((data) => {
-      viewData.departments = data;
-      for (let i = 0; i < viewData.departments.length; i++) {
-        if (viewData.departments[i].departmentId == viewData.employee[0].department) {
-          viewData.departments[i].selected = true;
-        }
+    console.log(err);
+    res.render("employee", { message: "no results" });
+  }).then(dataserver.getDepartments).then((data) => {
+    viewData.departments = data;
+    for (let i = 0; i < viewData.departments.length; i++) {
+      if (viewData.departments[i].departmentId == viewData.employee[0].department) {
+        viewData.departments[i].selected = true;
       }
-    }).catch(() => {
-      viewData.departments = []; // set departments to empty if there was an error
-    }).then(() => {
-      if (viewData.employee == null) {
-        res.status(404).send("Employee not found");
-      } else {
-        res.render("employee", { viewData: viewData })
-      }
-    });
+    }
+  }).catch(() => {
+    viewData.departments = []; // set departments to empty if there was an error
+  }).then(() => {
+    if (viewData.employee == null) {
+      res.status(404).send("Employee not found");
+    } else {
+      res.render("employee", { viewData: viewData })
+    }
+  });
 });
 
 
@@ -271,8 +329,25 @@ app.use(function (req, res) {
 });
 
 // setup http server to listen on HTTP_PORT]
-dataserver.initialize().then(
-  app.listen(HTTP_PORT, onHttpStart)
-).catch(err => {
-  console.log(err);
-});
+// dataserver.initialize().then(
+//   app.listen(HTTP_PORT, onHttpStart)
+// ).catch(err => {
+//   console.log(err);
+// });
+
+
+// dataserver.initialize()
+//   //.then(dataServiceAuth.initialize)
+//   .then(function () {
+//     app.listen(HTTP_PORT, onHttpStart)
+//   }).catch(function (err) {
+//     console.log("unable to start server: " + err);
+//   });
+
+dataserver.initialize()
+  .then(dataServiceAuth.initialize())
+  .then(
+    app.listen(HTTP_PORT, onHttpStart)
+  ).catch(err => {
+    console.log(err);
+  });
