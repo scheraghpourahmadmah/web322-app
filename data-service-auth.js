@@ -21,6 +21,7 @@ let User;
 let connectionString = "mongodb+srv://sholeh:Password@cluster0.fy8l0.mongodb.net/web322_assignment?retryWrites=true&w=majority";
 
 
+
 exports.initialize = () => {
     return new Promise((resolve, reject) => {
         console.log('here');
